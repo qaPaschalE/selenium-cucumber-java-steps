@@ -1,14 +1,14 @@
-package org.example.stepDefinitions.ui;
+package com.github.qaPaschalE.stepDefinitions.ui;
 
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import org.example.util.ConfigLoader;
+import com.github.qaPaschalE.util.ConfigLoader;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.example.util.WebDriverUtils;
+import com.github.qaPaschalE.util.WebDriverUtils;
 import java.time.Duration;
 import java.util.List;
 import org.testng.Assert;

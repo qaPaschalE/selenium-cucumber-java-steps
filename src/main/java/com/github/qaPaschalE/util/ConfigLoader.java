@@ -1,4 +1,4 @@
-package org.example.util;
+package com.github.qaPaschalE.util;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -1,4 +1,4 @@
-package org.example.util;
+package com.github.qaPaschalE.util;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.WebDriver;

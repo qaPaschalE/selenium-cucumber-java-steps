@@ -1,4 +1,4 @@
-package org.example.util;
+package com.github.qaPaschalE.util;
 
 import io.cucumber.java.After;
 import io.cucumber.java.Before;

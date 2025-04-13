@@ -1,4 +1,4 @@
-package org.example.stepDefinitions.api;
+package com.github.qaPaschalE.stepDefinitions.api;
 
 import io.cucumber.java.en.*;
 import io.restassured.RestAssured;

@@ -1,4 +1,4 @@
-package org.example.stepDefinitions.db;
+package com.github.qaPaschalE.stepDefinitions.db;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.en.Then;
