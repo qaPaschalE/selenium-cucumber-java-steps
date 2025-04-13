@@ -1,0 +1,12 @@
+{
+  "cucumber.features": [
+    "cypress/e2e/features/*.feature",
+    "cypress/e2e/features/*.cy.feature",
+    "src/test/resources/features/ui/*.feature",
+    "apps/qa/cypress/e2e/features/*.cy.feature",
+    "e2e/features/*feature",
+    "features/*.feature"
+  ],
+
+  "cucumber.glue": ["src/test/java/org/example/stepDefinitions/**/*.java"]
+}
