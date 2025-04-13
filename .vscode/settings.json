@@ -8,5 +8,6 @@
     "features/*.feature"
   ],
 
-  "cucumber.glue": ["src/test/java/org/example/stepDefinitions/**/*.java"]
+  "cucumber.glue": ["src/test/java/org/example/stepDefinitions/**/*.java"],
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

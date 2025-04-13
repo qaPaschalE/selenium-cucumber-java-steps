@@ -6,6 +6,7 @@ import io.cucumber.java.en.When;
 import org.example.util.ConfigLoader;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.example.util.WebDriverUtils;
 import java.time.Duration;
@@ -18,146 +19,258 @@ public class UiStepDefinitions {
     private final WebDriver driver = WebDriverUtils.getDriver();
     private final WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-    private WebElement lastFoundElement; // Store the element found by "find" steps
-
-    // --- Helper Method to Find and Store Element ---
-    private void findAndStoreElement(By locator) {
-        try {
-            lastFoundElement = driver.findElement(locator);
-        } catch (NoSuchElementException e) {
-            fail("Element not found: " + locator);
+    private By getLocator(String selector) {
+        if (selector.startsWith("xpath:")) {
+            return By.xpath(selector.substring(6).trim());
+        } else if (selector.startsWith("//") || selector.startsWith("./") || selector.contains("/")) {
+            // Basic check for common XPath patterns
+            return By.xpath(selector.trim());
+        } else {
+            return By.cssSelector(selector);
         }
     }
 
+    private By getLocatorForText(String text) {
+        if (text.startsWith("xpath:")) {
+            // Extract the XPath expression after "xpath:"
+            return By.xpath(text.substring(6).trim());
+        } else {
+            // Default to XPath for text-based searches
+            return By.xpath("//*[contains(text(), '" + text + "')]");
+        }
+    }
+
+    private WebElement getNthElement(int index) {
+        Assert.assertNotNull(lastFoundElements, "No elements found.");
+        Assert.assertTrue(index > 0, "Index must be greater than 0.");
+        int zeroBasedIndex = index - 1; // Convert to zero-based index
+        Assert.assertTrue(zeroBasedIndex < lastFoundElements.size(), "Element at index " + index + " not found.");
+        return lastFoundElements.get(zeroBasedIndex);
+    }
+
+    private int parseOrdinal(String ordinal) {
+        // Remove non-numeric characters and parse the number
+        String numericPart = ordinal.replaceAll("[^0-9]", "");
+        return Integer.parseInt(numericPart);
+    }
+
+    private WebElement lastFoundElement; // For single element
+    private List<WebElement> lastFoundElements; // For multiple elements
     // --- "Find Element By..." Steps ---
-    @When("I find input by label text {string}")
-    public void iFindInputByLabelText(String labelText) {
+
+    private WebElement findElement(By locator) {
         try {
-            // Find the label element by its text
-            WebElement label = WebDriverUtils.getDriver().findElement(By.xpath("//label[contains(text(), '" + labelText + "')]"));
-
-            // Get the 'for' attribute of the label to locate the associated input
-            String inputId = label.getDomAttribute("for");
-            if (inputId == null || inputId.isEmpty()) {
-                throw new AssertionError("Label '" + labelText + "' does not have a valid 'for' attribute.");
-            }
-
-            // Find the associated input element
-            WebElement input = WebDriverUtils.getDriver().findElement(By.id(inputId));
-            input.click(); // Optionally interact with the input element
+            return WebDriverUtils.getDriver().findElement(locator);
         } catch (NoSuchElementException e) {
-            throw new AssertionError("Input associated with label '" + labelText + "' not found.", e);
+            throw new AssertionError("Element not found: " + locator, e);
         }
     }
 
-    @When("I find element by alt text {string}")
-    public void iFindElementByAltText(String altText) {
-        By locator = By.xpath("//*[@alt='" + altText + "']");
-        findAndStoreElement(locator);
+    @When("I find button by text {string}")
+    public void iFindButtonByText(String text) {
+        lastFoundElement = findElement(getLocator("button:contains('" + text + "')"));
+        System.out.println(lastFoundElement);
+
     }
 
-    @When("I find element by name {string}")
-    public void iFindElementByName(String name) {
-        By locator = By.name(name);
-        findAndStoreElement(locator);
+    @When("I find closest element {string}")
+    public void iFindClosestElement(String selector) {
+        // Requires JavaScriptExecutor to implement "closest" logic
+        WebElement element = (WebElement) ((JavascriptExecutor) WebDriverUtils.getDriver())
+                .executeScript("return arguments[0].closest(arguments[1]);", lastFoundElement, selector);
+        lastFoundElement = element;
+        System.out.println(element);
+
     }
 
-    @When("I find element by placeholder text {string}")
-    public void iFindElementByPlaceholderText(String placeholderText) {
-        By locator = By.xpath("//*[@placeholder='" + placeholderText + "']");
-        findAndStoreElement(locator);
+    @When("I find element by label text {string}")
+    public void iFindElementByLabelText(String labelText) {
+        lastFoundElement = findElement(getLocator("label:contains('" + labelText + "') + *"));
+        System.out.println(lastFoundElement);
+
     }
 
-    @When("I find element by role {string}")
-    public void iFindElementByRole(String role) {
-        By locator = By.xpath("//*[@role='" + role + "']");
-        findAndStoreElement(locator);
+    @When("I find input by name {string}")
+    public void iFindInputByName(String name) {
+        lastFoundElement = findElement(By.name(name));
+        System.out.println(lastFoundElement);
+
     }
 
-    @When("I find element by selector {string}")
-    public void iFindElementBySelector(String selector) {
-        By locator = By.cssSelector(selector);
-        findAndStoreElement(locator);
+    @When("I find input by placeholder text {string}")
+    public void iFindInputByPlaceholderText(String placeholderText) {
+        lastFoundElement = findElement(getLocator("input[placeholder='" + placeholderText + "']"));
+        System.out.println(lastFoundElement);
+
     }
 
-    @When("I find element by testid {string}")
-    public void iFindElementByTestid(String testid) {
-        By locator = By.cssSelector("[data-testid='" + testid + "']");
-        findAndStoreElement(locator);
-    }
+    @When("I find textarea by label text {string}")
+    public void iFindTextareaByLabelText(String labelText) {
+        lastFoundElement = findElement(
+                getLocator("label:contains('" + labelText + "') + textarea"));
+        System.out.println(lastFoundElement);
 
-    @When("I find element by text {string}")
-    public void iFindElementByText(String text) {
-        By locator = By.xpath("//*[contains(text(), '" + text + "')]");
-        findAndStoreElement(locator);
-    }
-
-    @When("I find element by title {string}")
-    public void iFindElementByTitle(String title) {
-        By locator = By.xpath("//*[@title='" + title + "']");
-        findAndStoreElement(locator);
     }
 
     // --- Actions to Perform on the Last Found Element ---
-    @When("I click the element")
+    @When("I click")
     public void iClickTheElement() {
-        Assert.assertNotNull(lastFoundElement, "No element found to click");
+        Assert.assertNotNull(lastFoundElement, "No element found to click.");
         lastFoundElement.click();
-        lastFoundElement = null; // Reset for the next find
+        lastFoundElement = null; // Reset after interaction
+        System.out.println(lastFoundElement);
+
     }
 
-    @When("I type {string} into the element")
+    @When("I click first element")
+    public void iClickTheFirstElement() {
+        Assert.assertNotNull(lastFoundElements, "No elements found to click.");
+        Assert.assertFalse(lastFoundElements.isEmpty(), "No elements found to click.");
+        lastFoundElements.get(0).click();
+        lastFoundElements = null; // Reset after interaction
+    }
+
+    @When("I click {string} element")
+    public void iClickNthElement(String ordinal) {
+        Assert.assertNotNull(lastFoundElements, "No elements found to click.");
+
+        // Parse the ordinal string into an integer
+        int index = parseOrdinal(ordinal);
+        Assert.assertTrue(index > 0, "Index must be greater than 0.");
+
+        // Convert to zero-based index
+        int zeroBasedIndex = index - 1;
+        Assert.assertTrue(zeroBasedIndex < lastFoundElements.size(), "Element at index " + index + " not found.");
+
+        // Click the nth element
+        WebElement nthElement = lastFoundElements.get(zeroBasedIndex);
+        nthElement.click();
+    }
+
+    @When("I click the last element")
+    public void iClickTheLastElement() {
+        Assert.assertNotNull(lastFoundElements, "No elements found to click.");
+        Assert.assertFalse(lastFoundElements.isEmpty(), "No elements found to click.");
+        WebElement lastElement = lastFoundElements.get(lastFoundElements.size() - 1);
+        lastElement.click();
+        lastFoundElements = null; // Reset after interaction
+    }
+
+    @When("I type {string}")
     public void iTypeIntoTheElement(String text) {
-        Assert.assertNotNull(lastFoundElement, "No element found to type into");
+        Assert.assertNotNull(lastFoundElement, "No element found to type into.");
         lastFoundElement.sendKeys(text);
-        lastFoundElement = null;
+        lastFoundElement = null; // Reset after interaction
+        System.out.println(lastFoundElement);
+
     }
 
-    @When("I clear the element")
+    @When("I type {string} into the {string} element")
+    public void iTypeIntoTheNthElement(String text, String ordinal) {
+        Assert.assertNotNull(lastFoundElements, "No elements found to type into.");
+
+        // Parse the ordinal string into an integer
+        int index = parseOrdinal(ordinal);
+        Assert.assertTrue(index > 0, "Index must be greater than 0.");
+
+        // Convert to zero-based index
+        int zeroBasedIndex = index - 1;
+        Assert.assertTrue(zeroBasedIndex < lastFoundElements.size(), "Element at index " + index + " not found.");
+
+        // Type into the nth element
+        WebElement nthElement = lastFoundElements.get(zeroBasedIndex);
+        nthElement.clear(); // Clear existing text if necessary
+        nthElement.sendKeys(text);
+    }
+
+    @When("I clear")
     public void iClearTheElement() {
-        Assert.assertNotNull(lastFoundElement, "No element found to clear");
+        Assert.assertNotNull(lastFoundElement, "No element found to clear.");
         lastFoundElement.clear();
-        lastFoundElement = null;
+        lastFoundElement = null; // Reset after interaction
+        System.out.println(lastFoundElement);
+
     }
 
-    @When("I check the element")
+    @When("I check")
     public void iCheckTheElement() {
-        Assert.assertNotNull(lastFoundElement, "No element found to check");
-        if (!lastFoundElement.isSelected()) {
-            lastFoundElement.click();
+        Assert.assertNotNull(lastFoundElement, "No element found to check.");
+        System.out.println(lastFoundElement);
+
+        try {
+            if (!lastFoundElement.isSelected()) {
+                lastFoundElement.click();
+            }
+        } catch (Exception e) {
+            throw new AssertionError("Failed to check the element.", e);
+        } finally {
+            lastFoundElement = null; // Reset after interaction
         }
-        lastFoundElement = null;
     }
 
-    @When("I uncheck the element")
+    @When("I check {string} element")
+    public void iCheckTheNthElement(String ordinal) {
+        Assert.assertNotNull(lastFoundElements, "No elements found to check.");
+
+        // Parse the ordinal string into an integer
+        int index = parseOrdinal(ordinal);
+        Assert.assertTrue(index > 0, "Index must be greater than 0.");
+
+        // Convert to zero-based index
+        int zeroBasedIndex = index - 1;
+        Assert.assertTrue(zeroBasedIndex < lastFoundElements.size(), "Element at index " + index + " not found.");
+
+        // Check the nth element
+        WebElement nthElement = lastFoundElements.get(zeroBasedIndex);
+        if (!nthElement.isSelected()) {
+            nthElement.click();
+        }
+    }
+
+    @When("I uncheck")
     public void iUncheckTheElement() {
-        Assert.assertNotNull(lastFoundElement, "No element found to uncheck");
-        if (lastFoundElement.isSelected()) {
-            lastFoundElement.click();
+        Assert.assertNotNull(lastFoundElement, "No element found to uncheck.");
+        try {
+            if (lastFoundElement.isSelected()) {
+                lastFoundElement.click();
+            }
+        } catch (Exception e) {
+            throw new AssertionError("Failed to uncheck the element.", e);
+        } finally {
+            lastFoundElement = null; // Reset after interaction
         }
-        lastFoundElement = null;
     }
 
-    @When("I set value {string} to the element")
+    @When("I uncheck the {string} element")
+    public void iUncheckTheNthElement(String ordinal) {
+        Assert.assertNotNull(lastFoundElements, "No elements found to uncheck.");
+
+        // Parse the ordinal string into an integer
+        int index = parseOrdinal(ordinal);
+        Assert.assertTrue(index > 0, "Index must be greater than 0.");
+
+        // Convert to zero-based index
+        int zeroBasedIndex = index - 1;
+        Assert.assertTrue(zeroBasedIndex < lastFoundElements.size(), "Element at index " + index + " not found.");
+
+        // Uncheck the nth element
+        WebElement nthElement = lastFoundElements.get(zeroBasedIndex);
+        if (nthElement.isSelected()) {
+            nthElement.click();
+        }
+    }
+
+    @When("I set value {string}")
     public void iSetValueToTheElement(String value) {
-        Assert.assertNotNull(lastFoundElement, "No element found to set value");
-        lastFoundElement.clear();
-        lastFoundElement.sendKeys(value);
-        lastFoundElement = null;
-    }
-
-    @When("I focus the element")
-    public void iFocusTheElement() {
-        Assert.assertNotNull(lastFoundElement, "No element found to focus");
-        lastFoundElement.click(); // Often click achieves focus
-        lastFoundElement = null;
-    }
-
-    @When("I blur the element")
-    public void iBlurTheElement() {
-        Assert.assertNotNull(lastFoundElement, "No element found to blur");
-        lastFoundElement.sendKeys(org.openqa.selenium.Keys.TAB); // Send TAB to blur
-        lastFoundElement = null;
+        Assert.assertNotNull(lastFoundElement, "No element found to set value.");
+        try {
+            lastFoundElement.clear(); // Clear existing text
+            lastFoundElement.sendKeys(value); // Set new value
+        } catch (Exception e) {
+            throw new AssertionError("Failed to set value '" + value + "' to the element.", e);
+        } finally {
+            lastFoundElement = null; // Reset after interaction
+        }
     }
 
     @Then("I see button {string}")
@@ -185,26 +298,79 @@ public class UiStepDefinitions {
         }
     }
 
-    @When("I click {string}")
-    public void iClick(String selector) {
-        WebElement element = driver.findElement(By.cssSelector(selector));
-        element.click();
+    @When("I click on selector {string}")
+    public void iClickOnSelector(String cssSelector) {
+        try {
+            WebElement element = WebDriverUtils.getDriver().findElement(By.cssSelector(cssSelector));
+            ((JavascriptExecutor) WebDriverUtils.getDriver()).executeScript("arguments[0].scrollIntoView(true);",
+                    element);
+            element.click();
+        } catch (NoSuchElementException e) {
+            throw new AssertionError("Element with CSS selector '" + cssSelector + "' not found.", e);
+        }
     }
 
-    @When("I type {string} into {string}")
+    @When("I click on {string}")
+    public void iClickOn(String locator) {
+        try {
+            WebElement element = WebDriverUtils.getDriver().findElement(getLocator(locator));
+            ((JavascriptExecutor) WebDriverUtils.getDriver()).executeScript("arguments[0].scrollIntoView(true);",
+                    element);
+            element.click();
+        } catch (NoSuchElementException e) {
+            throw new AssertionError("Element with locator '" + locator + "' not found.", e);
+        }
+    }
+
+    @When("I click on xpath {string}")
+    public void iClickOnXpath(String xpath) {
+        try {
+            WebElement element = WebDriverUtils.getDriver().findElement(By.xpath(xpath));
+            ((JavascriptExecutor) WebDriverUtils.getDriver()).executeScript("arguments[0].scrollIntoView(true);",
+                    element);
+            element.click();
+        } catch (NoSuchElementException e) {
+            throw new AssertionError("Element with XPath '" + xpath + "' not found.", e);
+        }
+    }
+
+    @When("I click on text {string}")
+    public void iClickOnText(String text) {
+        try {
+            // Determine whether to use CSS or XPath based on the prefix
+            By locator = getLocatorForText(text);
+
+            // Find the element
+            WebElement element = WebDriverUtils.getDriver().findElement(locator);
+
+            // Scroll into view if necessary
+            ((JavascriptExecutor) WebDriverUtils.getDriver()).executeScript("arguments[0].scrollIntoView(true);",
+                    element);
+
+            // Click the element
+            element.click();
+        } catch (NoSuchElementException e) {
+            // Fail the test with a meaningful error message
+            throw new AssertionError("Element with text '" + text + "' not found.", e);
+        }
+    }
+
+    @When("I type {string} into locator {string}")
     public void iTypeInto(String text, String selector) {
-        driver.findElement(By.cssSelector(selector)).sendKeys(text);
+        WebElement element = WebDriverUtils.getDriver().findElement(getLocator(selector));
+        element.sendKeys(text);
     }
 
     @When("I clear {string}")
     public void iClear(String selector) {
-        driver.findElement(By.cssSelector(selector)).clear();
+        WebElement element = WebDriverUtils.getDriver().findElement(getLocator(selector));
+        element.clear();
     }
 
     @When("I check {string}")
     public void iCheck(String selector) {
         try {
-            WebElement checkbox = WebDriverUtils.getDriver().findElement(By.cssSelector(selector));
+            WebElement checkbox = WebDriverUtils.getDriver().findElement(getLocator(selector));
             if (!checkbox.isSelected()) {
                 checkbox.click();
             }
@@ -216,7 +382,7 @@ public class UiStepDefinitions {
     @When("I uncheck {string}")
     public void iUncheck(String selector) {
         try {
-            WebElement checkbox = WebDriverUtils.getDriver().findElement(By.cssSelector(selector));
+            WebElement checkbox = WebDriverUtils.getDriver().findElement(getLocator(selector));
             if (checkbox.isSelected()) {
                 checkbox.click();
             }
@@ -228,7 +394,9 @@ public class UiStepDefinitions {
     @Then("I see heading {string}")
     public void iSeeHeading(String expectedText) {
         try {
-            WebElement heading = WebDriverUtils.getDriver().findElement(By.xpath("//*[self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6][contains(text(), '" + expectedText + "')]"));
+            WebElement heading = WebDriverUtils.getDriver().findElement(By.xpath(
+                    "//*[self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6][contains(text(), '"
+                            + expectedText + "')]"));
             Assert.assertTrue(heading.isDisplayed(), "Heading '" + expectedText + "' is not displayed.");
         } catch (NoSuchElementException e) {
             Assert.fail("Heading '" + expectedText + "' not found.");
@@ -301,10 +469,12 @@ public class UiStepDefinitions {
     public void iSeeText(String expectedText) {
         try {
             // Use XPath to find an element containing the expected text
-            WebElement element = WebDriverUtils.getDriver().findElement(By.xpath("//*[contains(text(), '" + expectedText + "')]"));
+            WebElement element = WebDriverUtils.getDriver()
+                    .findElement(By.xpath("//*[contains(text(), '" + expectedText + "')]"));
 
             // Assert that the element is displayed
-            Assert.assertTrue(element.isDisplayed(), "Expected text '" + expectedText + "' is not displayed on the page.");
+            Assert.assertTrue(element.isDisplayed(),
+                    "Expected text '" + expectedText + "' is not displayed on the page.");
         } catch (NoSuchElementException e) {
             // Fail the test if the text is not found
             Assert.fail("Expected text '" + expectedText + "' was not found on the page.");
@@ -336,7 +506,7 @@ public class UiStepDefinitions {
     public void iSeeTextareaValue(String expectedValue, String selector) {
         WebElement textarea = driver.findElement(By.cssSelector(selector));
         String actualValue = textarea.getDomAttribute("value");
-        assertEquals(actualValue,expectedValue,"Incorrect textarea value");
+        assertEquals(actualValue, expectedValue, "Incorrect textarea value");
     }
 
     @When("I click on button {string}")
@@ -352,19 +522,19 @@ public class UiStepDefinitions {
     @When("I click on link {string}")
     public void iClickOnLink(String linkText) {
         try {
-            // Use XPath to find a link containing the specified text
-            WebElement link = WebDriverUtils.getDriver().findElement(By.xpath("//*[contains(text(), '" + linkText + "')]"));
+            // Use the getLocator method to allow both CSS and XPath
+            WebElement link = WebDriverUtils.getDriver().findElement(getLocator("a:contains('" + linkText + "')"));
 
-            // Scroll into view if necessary (optional, depending on your application)
+            // Scroll into view if necessary
             ((JavascriptExecutor) WebDriverUtils.getDriver()).executeScript("arguments[0].scrollIntoView(true);", link);
 
             // Click the link
             link.click();
         } catch (Exception e) {
-            // Fail the test with a meaningful error message
             throw new AssertionError("Link with text '" + linkText + "' not found or could not be clicked.", e);
         }
     }
+
     @When("I double click {string}")
     public void iDoubleClick(String selector) {
         org.openqa.selenium.interactions.Actions actions = new org.openqa.selenium.interactions.Actions(driver);
@@ -372,16 +542,11 @@ public class UiStepDefinitions {
         actions.doubleClick(element).perform();
     }
 
-    @When("I focus on {string}")
-    public void iFocus(String selector) {
-        WebElement element = driver.findElement(By.cssSelector(selector));
-        element.click(); // Selenium doesn't have a direct "focus" method, often click achieves this
-    }
-
-    @When("I blur {string}")
-    public void iBlur(String selector) {
-        WebElement element = driver.findElement(By.cssSelector(selector));
-        element.sendKeys(org.openqa.selenium.Keys.TAB); // Send TAB key to blur (crude method)
+    @Then("I see count elements is {int}")
+    public void iSeeCountElementsIs(int expectedCount) {
+        Assert.assertNotNull(lastFoundElements, "No elements found to count.");
+        Assert.assertEquals(lastFoundElements.size(), expectedCount, "Incorrect element count.");
+        lastFoundElements = null; // Reset after interaction
     }
 
     @When("I set value {string} in {string}")
@@ -481,7 +646,7 @@ public class UiStepDefinitions {
     public void iSeeElementHasAttribute(String attribute, String selector) {
         WebElement element = driver.findElement(By.cssSelector(selector));
         String actualValue = element.getDomAttribute(attribute);
-        assertNotNull(actualValue,"Element does not have attribute: " + attribute);
+        assertNotNull(actualValue, "Element does not have attribute: " + attribute);
     }
 
     @Then("I see element is not visible {string}")
@@ -503,80 +668,6 @@ public class UiStepDefinitions {
         } catch (NoSuchElementException e) {
             Assert.fail("Element does not exist: " + selector);
         }
-    }
-
-    @When("I find button by text {string}")
-    public void iFindButtonByText(String text) {
-        try {
-            By buttonLocator = By.xpath("//button[normalize-space()='" + text + "']");
-            driver.findElement(buttonLocator); // This ensures the button exists
-        } catch (NoSuchElementException e) {
-            throw new AssertionError("No button found with exact text: '" + text + "'", e);
-        }
-    }
-
-    private List<WebElement> buttons;
-
-    @When("I find buttons by text {string}")
-    public void iFindButtonsByText(String text) {
-        buttons = driver.findElements(By.xpath("//button[contains(., '" + text + "')]"));
-        Assert.assertFalse(buttons.isEmpty(), "No buttons found with text: " + text);
-    }
-
-    @When("I find element by label text {string}")
-    public void iFindElementByLabelText(String labelText) {
-        // This is a simplified example; finding by label can be complex due to HTML
-        // structure
-        driver.findElement(By.xpath("//label[contains(text(), '" + labelText + "')]/following-sibling::*"));
-    }
-
-    @When("I find elements by alt text {string}")
-    public void iFindElementsByAltText(String altText) {
-        List<WebElement> elements = driver.findElements(By.xpath("//*[contains(@alt, '" + altText + "')]"));
-        Assert.assertFalse(elements.isEmpty(), "No elements found with alt text containing: " + altText);
-    }
-
-    @When("I find elements by label text {string}")
-    public void iFindElementsByLabelText(String labelText) {
-        // Handles labels associated via "for" attribute or nested inputs
-        List<WebElement> elements = driver.findElements(By.xpath(
-                "//label[normalize-space()='" + labelText + "']" +
-                        "| //label[normalize-space()='" + labelText + "']//input" +
-                        "| //*[@id=//label[normalize-space()='" + labelText + "']/@for]"));
-        Assert.assertFalse(elements.isEmpty(), "No elements found with label text: " + labelText);
-    }
-
-    @When("I find elements by name {string}")
-    public void iFindElementsByName(String name) {
-        List<WebElement> elements = driver.findElements(By.name(name));
-        Assert.assertFalse(elements.isEmpty(), "No elements found with name: " + name);
-    }
-
-    @When("I find elements by placeholder text {string}")
-    public void iFindElementsByPlaceholderText(String placeholderText) {
-        List<WebElement> elements = driver.findElements(
-                By.xpath(
-                        "//*[@placeholder][contains(translate(@placeholder, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '"
-                                + placeholderText.toLowerCase() + "')]"));
-        Assert.assertFalse(elements.isEmpty(), "No elements found with placeholder text: " + placeholderText);
-    }
-
-    @When("I find elements by role {string}")
-    public void iFindElementsByRole(String role) {
-        List<WebElement> elements = driver.findElements(By.xpath("//*[@role='" + role + "']"));
-        Assert.assertFalse(elements.isEmpty(), "No elements found with role: " + role);
-    }
-
-    @When("I find elements by testid {string}")
-    public void iFindElementsByTestid(String testid) {
-        List<WebElement> elements = driver.findElements(By.cssSelector("[data-testid='" + testid + "']"));
-        Assert.assertFalse(elements.isEmpty(), "No elements found with testid: " + testid);
-    }
-
-    @When("I find elements by title {string}")
-    public void iFindElementsByTitle(String title) {
-        List<WebElement> elements = driver.findElements(By.xpath("//*[contains(@title, '" + title + "')]"));
-        Assert.assertFalse(elements.isEmpty(), "No elements found with title containing: " + title);
     }
 
     @When("I find form {string}")
@@ -609,128 +700,92 @@ public class UiStepDefinitions {
                 "No headings found containing text (case-insensitive): '" + text + "'");
     }
 
-    @When("I find image by alt text {string}")
-    public void iFindImageByAltText(String altText) {
-        driver.findElement(By.xpath("//img[@alt='" + altText + "']"));
-    }
-
-    @When("I find images by alt text {string}")
-    public void iFindImagesByAltText(String altText) {
-        List<WebElement> images = driver.findElements(By.xpath("//img[@alt='" + altText + "']"));
-        Assert.assertTrue(!images.isEmpty(), "No images found with alt text: " + altText);
-    }
-
-    @When("I find input by display value {string}")
-    public void iFindInputByDisplayValue(String displayValue) {
-        driver.findElement(By.xpath("//input[@value='" + displayValue + "']"));
-    }
-
-    @When("I find input by name {string}")
-    public void iFindInputByName(String name) {
-        driver.findElement(By.name(name));
-    }
-
-    @When("I find input by placeholder text {string}")
-    public void iFindInputByPlaceholderText(String placeholderText) {
-        driver.findElement(By.xpath("//input[@placeholder='" + placeholderText + "']"));
-    }
-
-    @When("I find inputs by name {string}")
-    public void iFindInputsByName(String name) {
-        List<WebElement> inputs = driver.findElements(By.name(name));
-        assertFalse(inputs.isEmpty(), "No inputs found with name: " + name);
-    }
-
-    @When("I find inputs by placeholder text {string}")
-    public void iFindInputsByPlaceholderText(String placeholderText) {
-        List<WebElement> inputs = driver.findElements(By.xpath("//input[@placeholder='" + placeholderText + "']"));
-        assertFalse(inputs.isEmpty(), "No inputs found with placeholder text: " + placeholderText);
-    }
-
-    @When("I find link by text {string}")
-    public void iFindLinkByText(String text) {
-        driver.findElement(By.xpath("//a[contains(text(), '" + text + "')]"));
-    }
-
-    @When("I find links by text {string}")
-    public void iFindLinksByText(String text) {
-        List<WebElement> links = WebDriverUtils.getDriver().findElements(By.xpath("//a[contains(text(), '" + text + "')]"));
-        if (links.isEmpty()) {
-            throw new AssertionError("No links found with text: " + text);
-        }
-    }
-
-    @When("I find select by display value {string}")
-    public void iFindSelectByDisplayValue(String displayValue) {
-        // Needs further implementation using Select class if needed
-        driver.findElement(By.xpath("//select/option[text()='" + displayValue + "']/parent::select"));
-    }
-
-    @When("I find textarea by display value {string}")
-    public void iFindTextareaByDisplayValue(String displayValue) {
-        driver.findElement(By.xpath("//textarea[@value='" + displayValue + "']"));
-    }
-
-    @When("I find textarea by label text {string}")
-    public void iFindTextareaByLabelText(String labelText) {
-        // Similar complexity to finding input by label
-        driver.findElement(By.xpath("//label[contains(text(), '" + labelText + "')]/following-sibling::textarea"));
-    }
-
-    @When("I find textarea by placeholder text {string}")
-    public void iFindTextareaByPlaceholderText(String placeholderText) {
-        driver.findElement(By.xpath("//textarea[@placeholder='" + placeholderText + "']"));
-    }
-
-    @When("I find textareas by placeholder text {string}")
-    public void iFindTextareasByPlaceholderText(String placeholderText) {
-        List<WebElement> textareas = driver
-                .findElements(By.xpath("//textarea[@placeholder='" + placeholderText + "']"));
-        assertTrue(!textareas.isEmpty(), "No textareas found with placeholder text: " + placeholderText);
-    }
-
     @When("I get children {string}")
     public void iGetChildren(String selector) {
-        WebElement element = driver.findElement(By.cssSelector(selector));
-        List<WebElement> children = element.findElements(By.xpath("./*"));
+        WebElement parentElement = driver.findElement(getLocator(selector));
+        List<WebElement> children = parentElement.findElements(By.xpath("./*")); // Find direct children
         assertTrue(!children.isEmpty(), "No children found for selector: " + selector);
+
+        // Store the children in lastFoundElements if needed
+        lastFoundElements = children;
     }
 
     @When("I get element by display value {string}")
     public void iGetElementByDisplayValue(String displayValue) {
-        driver.findElement(By.xpath("//*[@value='" + displayValue + "']"));
+        lastFoundElement = driver.findElement(getLocator("[value='" + displayValue + "']"));
+        System.out.println(lastFoundElement);
+
     }
 
     @When("I get element by selector {string}")
     public void iGetElementBySelector(String selector) {
-        driver.findElement(By.cssSelector(selector));
+        lastFoundElement = WebDriverUtils.getDriver().findElement(getLocator(selector));
+        Assert.assertNotNull(lastFoundElement, "No element found for selector: " + selector);
     }
 
     @When("I get elements by selector {string}")
     public void iGetElementsBySelector(String selector) {
-        List<WebElement> elements = driver.findElements(By.cssSelector(selector));
-        assertTrue(!elements.isEmpty(), "No elements found for selector: " + selector);
+        lastFoundElements = WebDriverUtils.getDriver().findElements(getLocator(selector));
+        Assert.assertFalse(lastFoundElements.isEmpty(), "No elements found for selector: " + selector);
     }
 
     @When("I get first element {string}")
     public void iGetFirstElement(String selector) {
-        List<WebElement> elements = driver.findElements(By.cssSelector(selector));
+        List<WebElement> elements = WebDriverUtils.getDriver().findElements(getLocator(selector));
         assertTrue(!elements.isEmpty(), "No elements found for selector: " + selector);
-        elements.get(0);
+        lastFoundElement = elements.get(0); // Store the first element
+        System.out.println(lastFoundElement);
+
+    }
+
+    @When("I get first element")
+    public void iGetFirstElement() {
+        Assert.assertNotNull(lastFoundElements, "No elements found to retrieve the first element.");
+        Assert.assertFalse(lastFoundElements.isEmpty(), "No elements found to retrieve the first element.");
+
+        // Store the first element in lastFoundElement
+        lastFoundElement = lastFoundElements.get(0);
     }
 
     @When("I get last element {string}")
     public void iGetLastElement(String selector) {
-        List<WebElement> elements = driver.findElements(By.cssSelector(selector));
+        List<WebElement> elements = WebDriverUtils.getDriver().findElements(getLocator(selector));
         assertTrue(!elements.isEmpty(), "No elements found for selector: " + selector);
-        elements.get(elements.size() - 1);
+        lastFoundElement = elements.get(elements.size() - 1); // Store the last element
+    }
+
+    @When("I get last element")
+    public void iGetLastElement() {
+        Assert.assertNotNull(lastFoundElements, "No elements found to retrieve the last element.");
+        Assert.assertFalse(lastFoundElements.isEmpty(), "No elements found to retrieve the last element.");
+
+        // Store the last element in lastFoundElement
+        lastFoundElement = lastFoundElements.get(lastFoundElements.size() - 1);
+        System.out.println(lastFoundElement);
+
     }
 
     @When("I get nth element {string} at index {int}")
     public void iGetNthElement(String selector, int index) {
-        List<WebElement> elements = driver.findElements(By.cssSelector(selector));
+        List<WebElement> elements = WebDriverUtils.getDriver().findElements(getLocator(selector));
         assertTrue(elements.size() > index, "Element at index " + index + " not found for selector: " + selector);
-        elements.get(index);
+        lastFoundElement = elements.get(index); // Store the nth element
+    }
+
+    @When("I get {string} element")
+    public void iGetNthElement(String ordinal) {
+        Assert.assertNotNull(lastFoundElements, "No elements found.");
+
+        // Parse the ordinal string into an integer
+        int index = parseOrdinal(ordinal);
+        Assert.assertTrue(index > 0, "Index must be greater than 0.");
+
+        // Convert to zero-based index
+        int zeroBasedIndex = index - 1;
+        Assert.assertTrue(zeroBasedIndex < lastFoundElements.size(), "Element at index " + index + " not found.");
+
+        // Store the nth element in lastFoundElement
+        lastFoundElement = lastFoundElements.get(zeroBasedIndex);
     }
 
     @When("I go back")
@@ -769,16 +824,50 @@ public class UiStepDefinitions {
         dropdown.selectByValue(value);
     }
 
+    @When("I select {string} from the {int} element")
+    public void iSelectFromTheNthElement(String optionText, int index) {
+        WebElement nthElement = getNthElement(index);
+        Select dropdown = new Select(nthElement);
+        dropdown.selectByVisibleText(optionText);
+    }
+
+    @When("I upload file {string}")
+    public void iUploadFile(String filePath) {
+        assertNotNull(lastFoundElement, "No element found to upload file to.");
+        lastFoundElement.sendKeys(filePath);
+        System.out.println(lastFoundElement);
+
+    }
+
+    @When("I upload file {string} to the {string} element")
+    public void iUploadFileToTheNthElement(String filePath, String ordinal) {
+        Assert.assertNotNull(lastFoundElements, "No elements found to upload file to.");
+
+        // Parse the ordinal string into an integer
+        int index = parseOrdinal(ordinal);
+        Assert.assertTrue(index > 0, "Index must be greater than 0.");
+
+        // Convert to zero-based index
+        int zeroBasedIndex = index - 1;
+        Assert.assertTrue(zeroBasedIndex < lastFoundElements.size(), "Element at index " + index + " not found.");
+
+        // Upload file to the nth element
+        WebElement nthElement = lastFoundElements.get(zeroBasedIndex);
+        nthElement.sendKeys(filePath);
+    }
+
+    @When("I select {string}")
+    public void iSelect(String optionText) {
+        assertNotNull(lastFoundElement, "No element found to select from.");
+        Select dropdown = new Select(lastFoundElement);
+        dropdown.selectByVisibleText(optionText);
+    }
+
     @When("I set attribute {string} to {string} in {string}")
     public void iSetAttribute(String attribute, String value, String selector) {
         WebElement element = driver.findElement(By.cssSelector(selector));
         ((org.openqa.selenium.JavascriptExecutor) driver)
                 .executeScript("arguments[0].setAttribute(arguments[1], arguments[2]);", element, attribute, value);
-    }
-
-    @When("I type {string} in {string}")
-    public void iType(String text, String selector) {
-        driver.findElement(By.cssSelector(selector)).sendKeys(text);
     }
 
     @When("I clear all cookies")
@@ -803,18 +892,6 @@ public class UiStepDefinitions {
         org.openqa.selenium.interactions.Actions actions = new org.openqa.selenium.interactions.Actions(driver);
         WebElement element = driver.findElement(By.cssSelector(selector));
         actions.doubleClick(element).perform();
-    }
-
-    @When("I find closest element {string}")
-    public void iFindClosestElement(String selector) {
-        // Selenium doesn't have a direct "closest" method, this would require
-        // JavaScriptExecutor
-        // Example (requires adaptation based on your needs):
-        // WebElement element = (WebElement) ((JavascriptExecutor)
-        // driver).executeScript("return arguments[0].closest(arguments[1]);", element,
-        // selector);
-        throw new UnsupportedOperationException(
-                "Closest element finding requires JavaScriptExecutor and specific implementation.");
     }
 
     @When("I get focused element")
@@ -928,6 +1005,161 @@ public class UiStepDefinitions {
         WebElement element = driver.findElement(By.cssSelector(selector));
         String script = String.format("$(arguments[0]).trigger('%s')", event);
         ((org.openqa.selenium.JavascriptExecutor) driver).executeScript(script, element);
+    }
+
+    @When("I find input by label text {string}")
+    public void iFindInputByLabelText(String labelText) {
+        By locator = By.xpath("//label[contains(text(), '" + labelText + "')]/following-sibling::input");
+        lastFoundElement = driver.findElement(locator);
+    }
+
+    @When("I find element by alt text {string}")
+    public void iFindElementByAltText(String altText) {
+        lastFoundElement = driver.findElement(getLocator("[alt='" + altText + "']"));
+    }
+
+    @When("I find element by name {string}")
+    public void iFindElementByName(String name) {
+        lastFoundElement = driver.findElement(getLocator("[name='" + name + "']"));
+    }
+
+    @When("I find element by placeholder text {string}")
+    public void iFindElementByPlaceholderText(String placeholderText) {
+        lastFoundElement = driver.findElement(getLocator("[placeholder='" + placeholderText + "']"));
+    }
+
+    @When("I find element by role {string}")
+    public void iFindElementByRole(String role) {
+        lastFoundElement = driver.findElement(getLocator("[role='" + role + "']"));
+    }
+
+    @When("I find element by selector {string}")
+    public void iFindElementBySelector(String selector) {
+        lastFoundElement = driver.findElement(getLocator(selector));
+    }
+
+    @When("I find element by testid {string}")
+    public void iFindElementByTestid(String testid) {
+        lastFoundElement = driver.findElement(getLocator("[data-testid='" + testid + "']"));
+    }
+
+    @When("I find element by text {string}")
+    public void iFindElementByText(String text) {
+        lastFoundElement = driver.findElement(By.xpath("//*[contains(text(), '" + text + "')]"));
+    }
+
+    @When("I find elements by text {string}")
+    public void iFindElementsByText(String text) {
+        List<WebElement> elements = driver.findElements(By.xpath("//*[contains(text(), '" + text + "')]"));
+        System.out.println(elements);
+        Assert.assertFalse(elements.isEmpty(), "No elements found containing text: " + text);
+
+        // Store the elements in lastFoundElements for subsequent interactions
+        lastFoundElements = elements;
+
+    }
+
+    @When("I find element by title {string}")
+    public void iFindElementByTitle(String title) {
+        lastFoundElement = driver.findElement(getLocator("[title='" + title + "']"));
+    }
+
+    @When("I find image by alt text {string}")
+    public void iFindImageByAltText(String altText) {
+        lastFoundElement = driver.findElement(getLocator("img[alt='" + altText + "']"));
+    }
+
+    @When("I find input by display value {string}")
+    public void iFindInputByDisplayValue(String displayValue) {
+        lastFoundElement = driver.findElement(getLocator("input[value='" + displayValue + "']"));
+    }
+
+    @When("I find link by text {string}")
+    public void iFindLinkByText(String text) {
+        lastFoundElement = driver.findElement(By.xpath("//a[contains(text(), '" + text + "')]"));
+    }
+
+    @When("I find select by display value {string}")
+    public void iFindSelectByDisplayValue(String displayValue) {
+        lastFoundElement = driver
+                .findElement(By.xpath("//select/option[text()='" + displayValue + "']/parent::select"));
+    }
+
+    @When("I find textarea by display value {string}")
+    public void iFindTextareaByDisplayValue(String displayValue) {
+        lastFoundElement = driver.findElement(getLocator("textarea[value='" + displayValue + "']"));
+    }
+
+    @When("I find textarea by placeholder text {string}")
+    public void iFindTextareaByPlaceholderText(String placeholderText) {
+        lastFoundElement = driver.findElement(getLocator("textarea[placeholder='" + placeholderText + "']"));
+    }
+
+    @When("I find buttons by text {string}")
+    public void iFindButtonsByText(String text) {
+        lastFoundElements = driver.findElements(By.xpath("//button[contains(., '" + text + "')]"));
+    }
+
+    @When("I find elements by alt text {string}")
+    public void iFindElementsByAltText(String altText) {
+        lastFoundElements = driver.findElements(getLocator("[alt='" + altText + "']"));
+    }
+
+    @When("I find elements by label text {string}")
+    public void iFindElementsByLabelText(String labelText) {
+        lastFoundElements = driver.findElements(By.xpath("//label[normalize-space()='" + labelText + "']" +
+                "| //label[normalize-space()='" + labelText + "']//input" +
+                "| //*[@id=//label[normalize-space()='" + labelText + "']/@for]"));
+    }
+
+    @When("I find elements by name {string}")
+    public void iFindElementsByName(String name) {
+        lastFoundElements = driver.findElements(getLocator("[name='" + name + "']"));
+    }
+
+    @When("I find elements by placeholder text {string}")
+    public void iFindElementsByPlaceholderText(String placeholderText) {
+        lastFoundElements = driver.findElements(getLocator("[placeholder='" + placeholderText + "']"));
+    }
+
+    @When("I find elements by role {string}")
+    public void iFindElementsByRole(String role) {
+        lastFoundElements = driver.findElements(getLocator("[role='" + role + "']"));
+    }
+
+    @When("I find elements by testid {string}")
+    public void iFindElementsByTestid(String testid) {
+        lastFoundElements = driver.findElements(getLocator("[data-testid='" + testid + "']"));
+    }
+
+    @When("I find elements by title {string}")
+    public void iFindElementsByTitle(String title) {
+        lastFoundElements = driver.findElements(getLocator("[title='" + title + "']"));
+    }
+
+    @When("I find images by alt text {string}")
+    public void iFindImagesByAltText(String altText) {
+        lastFoundElements = driver.findElements(getLocator("img[alt='" + altText + "']"));
+    }
+
+    @When("I find inputs by name {string}")
+    public void iFindInputsByName(String name) {
+        lastFoundElements = driver.findElements(getLocator("input[name='" + name + "']"));
+    }
+
+    @When("I find inputs by placeholder text {string}")
+    public void iFindInputsByPlaceholderText(String placeholderText) {
+        lastFoundElements = driver.findElements(getLocator("input[placeholder='" + placeholderText + "']"));
+    }
+
+    @When("I find links by text {string}")
+    public void iFindLinksByText(String text) {
+        lastFoundElements = driver.findElements(By.xpath("//a[contains(text(), '" + text + "')]"));
+    }
+
+    @When("I find textareas by placeholder text {string}")
+    public void iFindTextareasByPlaceholderText(String placeholderText) {
+        lastFoundElements = driver.findElements(getLocator("textarea[placeholder='" + placeholderText + "']"));
     }
 
     @Then("I see count elements {string} is {int}")
