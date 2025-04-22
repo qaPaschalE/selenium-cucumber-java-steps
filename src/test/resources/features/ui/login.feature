@@ -12,4 +12,4 @@ Feature: User Login
     And I get element by selector "#userName"
     And I type "test"
     # And I get nth element "/" at index 120
-    And I wait 120 seconds
+    And I wait 10 seconds

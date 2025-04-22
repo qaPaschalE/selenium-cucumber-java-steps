@@ -39,12 +39,12 @@ public class DbStepDefinitions {
     // endregion
 
     // region QUERY BUILDERS
-    @When("I set query parameter {string} to {string}")
-    public void setStringParameter(String key, String value) {
+    @When("I set DB query parameter {string} to {string}")
+    public void stringParameterSet(String key, String value) {
         queryParameters.put(key, value);
     }
 
-    @When("I set query parameter {string} to {int}")
+    @When("I set DB query parameter {string} to {int}")
     public void setIntParameter(String key, int value) {
         queryParameters.put(key, value);
     }
